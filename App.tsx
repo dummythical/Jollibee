@@ -1,69 +1,108 @@
-import { useState, useEffect } from "react";
-import axios from "axios";
+import { useState, useEffect, useCallback, useRef } from "react";
+import axios, { AxiosError } from "axios";
 import LoadingBar from "./components/loading_bar";
 import Header from "./components/Header";
 import BodyStart from "./components/BodyStart";
-import BodyContents from "./components/BodyContents";
+import BodyContents, { type CategoryItem } from "./components/BodyContents";
 
 function App() {
   const [action, setAction] = useState("");
   const [displayLoading, setDisplayLoading] = useState("block");
   const [widthLoading, setWidthLoading] = useState(10);
   const [languages, setLanguages] = useState([]);
-  const [categoryList, setCategoryList] = useState([]);
+  const [categoryList, setCategoryList] = useState<CategoryItem[]>([]);
+  const hasLoadedLanguages = useRef(false);
+  const hasLoadedCategories = useRef(false);
 
-  const setWidthLoadingHandle = (num: number, type: string) => {
-    if (type === "add") {
-      if (widthLoading + num < 100) {
-        setWidthLoading(widthLoading + num);
-      } else {
-        setWidthLoading(100);
-        setTimeout(() => {
-          setDisplayLoading("none");
-        }, 100);
-      }
-    } else if (type === "set") {
-      setWidthLoading(num);
-      if (num >= 100) {
-        setTimeout(() => {
-          setDisplayLoading("none");
-        }, 100);
-      } else {
-        setDisplayLoading("block");
-      }
-    } else console.log("Wrong Width Loading Type");
-  };
+  const setWidthLoadingHandle = useCallback(
+    (num: number, type: "add" | "set") => {
+      if (type === "add") {
+        setWidthLoading((prevWidth) => {
+          const nextWidth = Math.min(prevWidth + num, 100);
 
-  const getCategoryList = () => {
+          if (nextWidth >= 100) {
+            setTimeout(() => {
+              setDisplayLoading("none");
+            }, 100);
+          } else {
+            setDisplayLoading("block");
+          }
+
+          return nextWidth;
+        });
+      } else if (type === "set") {
+        setWidthLoading(num);
+        if (num >= 100) {
+          setTimeout(() => {
+            setDisplayLoading("none");
+          }, 100);
+        } else {
+          setDisplayLoading("block");
+        }
+      } else {
+        console.log("Wrong Width Loading Type");
+      }
+    },
+    []
+  );
+
+  const getCategoryList = useCallback(() => {
+    if (hasLoadedCategories.current) {
+      return undefined;
+    }
+
+    hasLoadedCategories.current = true;
     setWidthLoadingHandle(10, "set");
+
+    const controller = new AbortController();
+
     axios
-      .get("http://192.168.0.89:3000/category_list")
+      .get("http://192.168.0.89:3000/category_list", {
+        signal: controller.signal,
+      })
       .then((response) => {
         setCategoryList(response.data);
         setWidthLoadingHandle(100, "set");
       })
       .catch((err) => {
+        if (axios.isAxiosError(err) && err.code === AxiosError.ERR_CANCELED) {
+          hasLoadedCategories.current = false;
+          return;
+        }
+
+        hasLoadedCategories.current = false;
         console.log(err);
       });
-  };
+
+    return () => controller.abort();
+  }, [setWidthLoadingHandle]);
 
   const setActionHandle = (type: string) => {
     const currentAction = localStorage.getItem("Action");
     if (currentAction !== type) {
       localStorage.setItem("Action", type);
       setAction(type);
-      console.log("Clicked");
     }
   };
 
   const handleBodyClick = () => {
     setActionHandle("ordering");
-    getCategoryList();
   };
 
   useEffect(() => {
+    if (hasLoadedLanguages.current) {
+      return;
+    }
+
+    hasLoadedLanguages.current = true;
+    setWidthLoadingHandle(10, "set");
+
+    const controller = new AbortController();
+
     axios
-      .get("http://192.168.0.89:3000/languages_available")
+      .get("http://192.168.0.89:3000/languages_available", {
+        signal: controller.signal,
+      })
       .then((response) => {
         setLanguages(response.data);
         setWidthLoadingHandle(100, "set");
@@ -72,15 +111,35 @@ function App() {
         if (!storedAction) {
           localStorage.setItem("Action", "Start");
           setAction("Start");
-        } else if (storedAction != "Start") {
+        } else if (storedAction !== "Start") {
           setAction(storedAction);
-          console.log(233);
         }
       })
       .catch((err) => {
+        if (axios.isAxiosError(err) && err.code === AxiosError.ERR_CANCELED) {
+          hasLoadedLanguages.current = false;
+          return;
+        }
+
+        hasLoadedLanguages.current = false;
         console.log(err);
       });
-  }, []);
+
+    return () => controller.abort();
+  }, [setWidthLoadingHandle]);
+
+  useEffect(() => {
+    if (action === "ordering") {
+      const abortFetch = getCategoryList();
+      return () => {
+        if (typeof abortFetch === "function") {
+          abortFetch();
+        }
+      };
+    }
+
+    return undefined;
+  }, [action, getCategoryList]);
 
   return (
     <div className="App">

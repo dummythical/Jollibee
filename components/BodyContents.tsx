@@ -1,21 +1,17 @@
 import Category from "./category";
 
-interface Categories {
+export interface CategoryItem {
   default_name: string;
   file_name: string;
+  image_url?: string;
 }
 
-interface CategoryList {
-  categoryList: Categories[];
+interface CategoryListProps {
+  categoryList: CategoryItem[];
 }
 
-function BodyContents({ categoryList }: CategoryList) {
-  return (
-    <>
-      {console.log(categoryList)}
-      <Category></Category>
-    </>
-  );
+function BodyContents({ categoryList }: CategoryListProps) {
+  return <Category categoryList={categoryList} />;
 }
 
 export default BodyContents;
