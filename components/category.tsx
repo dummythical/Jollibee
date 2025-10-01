@@ -1,8 +1,12 @@
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
+import type { CategoryItem } from "./BodyContents";
 
+interface CategoryProps {
+  categoryList: CategoryItem[];
+}
 
-function Category() {
+function Category({ categoryList }: CategoryProps) {
   return (
     <>
       <h2 className="text-center mt-3 mb-0">Menu</h2>
@@ -23,23 +27,24 @@ function Category() {
           },
         }}
       >
-        {/* {categoryList.map((item) => (
-          <p>{item.default_name}</p>
-        ))} */}
-        <SwiperSlide>
-          <div>
-            <img src="./c1.png"></img>
-            <p>Breakfast</p>
-          </div>
-        </SwiperSlide>
-        <SwiperSlide>Slide 2</SwiperSlide>
-        <SwiperSlide>Slide 3</SwiperSlide>
-        <SwiperSlide>Slide 4</SwiperSlide>
-        <SwiperSlide>Slide 5</SwiperSlide>
-        <SwiperSlide>Slide 6</SwiperSlide>
-        <SwiperSlide>Slide 7</SwiperSlide>
-        <SwiperSlide>Slide 8</SwiperSlide>
-        <SwiperSlide>Slide 9</SwiperSlide>
+        {categoryList.length > 0 ? (
+          categoryList.map((item) => (
+            <SwiperSlide key={item.file_name}>
+              <div>
+                {item.image_url ? (
+                  <img src={item.image_url} alt={item.default_name} />
+                ) : null}
+                <p>{item.default_name}</p>
+              </div>
+            </SwiperSlide>
+          ))
+        ) : (
+          <SwiperSlide>
+            <div>
+              <p className="text-center m-0">No categories available</p>
+            </div>
+          </SwiperSlide>
+        )}
       </Swiper>
     </>
   );
